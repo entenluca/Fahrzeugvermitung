@@ -5,7 +5,7 @@ lua54 'yes'
 name 'MB_Fahrzeugvermitung'
 author 'MB'
 description 'Fahrzeugvermietung'
-version '1.2.0'
+version '1.2.1'
 
 shared_script 'config.lua'
 

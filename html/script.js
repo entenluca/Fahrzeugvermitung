@@ -1159,6 +1159,10 @@
 
     const rows = locations.map((loc) => {
       const coords = loc.coords || {};
+      const spawn = loc.spawnPoint || {};
+      const spawnLabel = (spawn.x != null && spawn.y != null && spawn.z != null)
+        ? `${Number(spawn.x).toFixed(1)}, ${Number(spawn.y).toFixed(1)}, ${Number(spawn.z).toFixed(1)}`
+        : 'Automatisch';
       const source = loc.source || 'admin';
       const canDelete = source !== 'config';
       return `
@@ -1166,6 +1170,7 @@
           <td class="td-strong">${esc(loc.label || loc.name || 'Mietstation')}</td>
           <td><span class="code">${Number(coords.x || 0).toFixed(2)}, ${Number(coords.y || 0).toFixed(2)}, ${Number(coords.z || 0).toFixed(2)}</span></td>
           <td><span class="code">${Number(loc.heading || 0).toFixed(1)}</span></td>
+          <td><span class="code">${spawnLabel}</span></td>
           <td><span class="code">${esc(loc.pedModel || 's_m_m_autoshop_01')}</span></td>
           <td><span class="badge badge-neutral">${source === 'config' ? 'Config' : 'Ingame'}</span></td>
           <td>
@@ -1182,7 +1187,7 @@
       <div class="tab-head">
         <div class="tab-head-text">
           <span class="tab-title">Miet-Orte</span>
-          <span class="tab-sub">Setze Koordinaten. Dort spawnt ein NPC, über den Spieler Fahrzeuge mieten.</span>
+          <span class="tab-sub">NPC-Position und optionaler Fahrzeug-Spawnpunkt festlegen</span>
         </div>
         <button class="btn btn-primary" id="btn-add-location">Ort hinzufügen</button>
       </div>
@@ -1191,7 +1196,7 @@
         ${rows ? `
           <table class="table">
             <thead>
-              <tr><th>Name</th><th>Koordinaten</th><th>Heading</th><th>NPC</th><th>Quelle</th><th></th></tr>
+              <tr><th>Name</th><th>NPC-Koordinaten</th><th>Heading</th><th>Spawnpunkt</th><th>NPC</th><th>Quelle</th><th></th></tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
@@ -1230,6 +1235,7 @@
   function openLocationModal(location) {
     const isNew = !location;
     const coords = location && location.coords ? location.coords : {};
+    const spawn = location && location.spawnPoint ? location.spawnPoint : {};
 
     openModal({
       title: isNew ? 'Ort hinzufügen' : 'Ort bearbeiten',
@@ -1239,25 +1245,26 @@
           <input class="input" id="lm-name" value="${esc(location ? (location.label || location.name || '') : '')}" placeholder="z. B. Flughafen Vermietung" />
         </div>
 
+        <p class="field-section-label">NPC-Position</p>
         <div class="form-grid">
           <div class="field">
             <label class="field-label" for="lm-x">X</label>
-            <input class="input" id="lm-x" type="number" step="0.001" value="${esc(coords.x || '')}" />
+            <input class="input" id="lm-x" type="number" step="0.001" value="${esc(coords.x ?? '')}" />
           </div>
           <div class="field">
             <label class="field-label" for="lm-y">Y</label>
-            <input class="input" id="lm-y" type="number" step="0.001" value="${esc(coords.y || '')}" />
+            <input class="input" id="lm-y" type="number" step="0.001" value="${esc(coords.y ?? '')}" />
           </div>
         </div>
 
         <div class="form-grid">
           <div class="field">
             <label class="field-label" for="lm-z">Z</label>
-            <input class="input" id="lm-z" type="number" step="0.001" value="${esc(coords.z || '')}" />
+            <input class="input" id="lm-z" type="number" step="0.001" value="${esc(coords.z ?? '')}" />
           </div>
           <div class="field">
             <label class="field-label" for="lm-heading">Heading</label>
-            <input class="input" id="lm-heading" type="number" step="0.01" value="${esc(location ? (location.heading || 0) : '')}" />
+            <input class="input" id="lm-heading" type="number" step="0.01" value="${esc(location ? (location.heading ?? '') : '')}" />
           </div>
         </div>
 
@@ -1267,7 +1274,33 @@
           <span class="field-hint">Ped-Model, z. B. s_m_m_autoshop_01, a_m_y_business_02</span>
         </div>
 
-        <button class="btn btn-secondary btn-block" id="btn-use-current-coords" type="button">Aktuelle Position übernehmen</button>
+        <button class="btn btn-secondary btn-block" id="btn-use-current-coords" type="button">Aktuelle Position als NPC übernehmen</button>
+
+        <p class="field-section-label">Spawnpunkt (Fahrzeug)</p>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" for="lm-spawn-x">Spawn X</label>
+            <input class="input" id="lm-spawn-x" type="number" step="0.001" value="${esc(spawn.x ?? '')}" placeholder="optional" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="lm-spawn-y">Spawn Y</label>
+            <input class="input" id="lm-spawn-y" type="number" step="0.001" value="${esc(spawn.y ?? '')}" placeholder="optional" />
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" for="lm-spawn-z">Spawn Z</label>
+            <input class="input" id="lm-spawn-z" type="number" step="0.001" value="${esc(spawn.z ?? '')}" placeholder="optional" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="lm-spawn-heading">Spawn Heading</label>
+            <input class="input" id="lm-spawn-heading" type="number" step="0.01" value="${esc(spawn.heading ?? spawn.w ?? '')}" placeholder="optional" />
+          </div>
+        </div>
+        <span class="field-hint">Leer lassen = Fahrzeug spawnt automatisch 3 m neben dem NPC</span>
+
+        <button class="btn btn-secondary btn-block" id="btn-use-current-spawn" type="button">Aktuelle Position als Spawnpunkt übernehmen</button>
       `,
       buttons: [
         { label: 'Abbrechen', cls: 'btn-secondary' },
@@ -1282,8 +1315,25 @@
               y: Number($('#lm-y', m).value),
               z: Number($('#lm-z', m).value),
               heading: Number($('#lm-heading', m).value),
-              pedModel: $('#lm-ped', m).value.trim() || 's_m_m_autoshop_01'
+              pedModel: $('#lm-ped', m).value.trim() || 's_m_m_autoshop_01',
             };
+
+            const spawnXRaw = $('#lm-spawn-x', m).value.trim();
+            const spawnYRaw = $('#lm-spawn-y', m).value.trim();
+            const spawnZRaw = $('#lm-spawn-z', m).value.trim();
+            const spawnHeadingRaw = $('#lm-spawn-heading', m).value.trim();
+            const hasSpawn = spawnXRaw !== '' || spawnYRaw !== '' || spawnZRaw !== '';
+
+            if (hasSpawn) {
+              data.spawnX = Number(spawnXRaw);
+              data.spawnY = Number(spawnYRaw);
+              data.spawnZ = Number(spawnZRaw);
+              data.spawnHeading = spawnHeadingRaw === '' ? data.heading : Number(spawnHeadingRaw);
+              if (![data.spawnX, data.spawnY, data.spawnZ].every(Number.isFinite)) {
+                toast('Bitte gültige Spawn-Koordinaten eingeben oder alle Spawn-Felder leer lassen.', 'error');
+                return false;
+              }
+            }
 
             if (!data.name) { toast('Bitte einen Namen eingeben.', 'error'); return false; }
             if (![data.x, data.y, data.z].every(Number.isFinite)) { toast('Bitte gültige Koordinaten eingeben.', 'error'); return false; }
@@ -1306,7 +1356,21 @@
           $('#lm-y', modalEl).value = coords.y;
           $('#lm-z', modalEl).value = coords.z;
           $('#lm-heading', modalEl).value = coords.heading;
-          toast('Aktuelle Position übernommen.', 'success');
+          toast('NPC-Position übernommen.', 'success');
+        });
+      });
+    }
+
+    const spawnBtn = $('#btn-use-current-spawn', modalEl);
+    if (spawnBtn) {
+      spawnBtn.addEventListener('click', () => {
+        post('getCurrentCoords').then((coords) => {
+          if (!coords || coords.success === false) return toast('Koordinaten konnten nicht gelesen werden.', 'error');
+          $('#lm-spawn-x', modalEl).value = coords.x;
+          $('#lm-spawn-y', modalEl).value = coords.y;
+          $('#lm-spawn-z', modalEl).value = coords.z;
+          $('#lm-spawn-heading', modalEl).value = coords.heading;
+          toast('Spawnpunkt übernommen.', 'success');
         });
       });
     }

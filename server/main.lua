@@ -254,6 +254,24 @@ local function TableContains(t, value)
 end
 
 
+local function ResolveSpawnPoint(loc, x, y, z, heading)
+    heading = tonumber(heading) or 0.0
+    local sp = loc and loc.spawnPoint
+    if type(sp) == 'vector4' then
+        return sp
+    end
+    if type(sp) == 'table' then
+        local sx = tonumber(sp.x) or tonumber(sp[1])
+        local sy = tonumber(sp.y) or tonumber(sp[2])
+        local sz = tonumber(sp.z) or tonumber(sp[3])
+        local sh = tonumber(sp.heading) or tonumber(sp.w) or tonumber(sp[4]) or heading
+        if sx and sy and sz then
+            return vector4(sx, sy, sz, sh)
+        end
+    end
+    return vector4(x + 3.0, y, z, heading)
+end
+
 local function FindLocation(name)
     name = tostring(name or '')
 
@@ -277,7 +295,7 @@ local function FindLocation(name)
                     key = loc.key or loc.name,
                     label = loc.label or loc.name or 'Mietstation',
                     vehicles = loc.vehicles or {}, -- leer = alle Fahrzeuge
-                    spawnPoint = vector4(x + 3.0, y, z, h),
+                    spawnPoint = ResolveSpawnPoint(loc, x, y, z, h),
                     npc = {
                         enabled = true,
                         model = loc.pedModel or (Config.AdminLocationPed and Config.AdminLocationPed.DefaultModel) or 's_m_m_autoshop_01',
@@ -1037,7 +1055,13 @@ function BuildAdminLocations()
             heading = heading,
             pedModel = (loc.npc and loc.npc.model) or (Config.AdminLocationPed and Config.AdminLocationPed.DefaultModel) or 's_m_m_autoshop_01',
             vehicles = loc.vehicles or {},
-            source = 'config'
+            source = 'config',
+            spawnPoint = loc.spawnPoint and {
+                x = loc.spawnPoint.x or loc.spawnPoint[1],
+                y = loc.spawnPoint.y or loc.spawnPoint[2],
+                z = loc.spawnPoint.z or loc.spawnPoint[3],
+                heading = loc.spawnPoint.w or loc.spawnPoint.heading or loc.spawnPoint[4] or heading,
+            } or nil,
         }
     end
 
@@ -1077,7 +1101,12 @@ local function NormalizeAdminLocation(data)
         pedModel = (Config.AdminLocationPed and Config.AdminLocationPed.DefaultModel) or 's_m_m_autoshop_01'
     end
 
-    return {
+    local spawnX = tonumber(data.spawnX) or tonumber(data.spawnPoint and data.spawnPoint.x)
+    local spawnY = tonumber(data.spawnY) or tonumber(data.spawnPoint and data.spawnPoint.y)
+    local spawnZ = tonumber(data.spawnZ) or tonumber(data.spawnPoint and data.spawnPoint.z)
+    local spawnHeading = tonumber(data.spawnHeading) or tonumber(data.spawnPoint and (data.spawnPoint.heading or data.spawnPoint.w))
+
+    local loc = {
         key = key,
         name = name,
         label = name,
@@ -1086,6 +1115,17 @@ local function NormalizeAdminLocation(data)
         pedModel = pedModel,
         source = 'admin'
     }
+
+    if spawnX and spawnY and spawnZ then
+        loc.spawnPoint = {
+            x = spawnX,
+            y = spawnY,
+            z = spawnZ,
+            heading = spawnHeading or heading,
+        }
+    end
+
+    return loc
 end
 
 local function SaveAdminLocation(data)
