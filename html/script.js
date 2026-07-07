@@ -9,16 +9,39 @@
   // ────────────────────────────────────────────────
   const IN_GAME = typeof window.GetParentResourceName === 'function';
 
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
   // ────────────────────────────────────────────────
   // FARBSCHEMA — System Hell / Dunkel erkennen
   // ────────────────────────────────────────────────
   const ColorScheme = (function () {
+    const STORAGE_KEY = 'mb_colorscheme_pref';
     const MQ = window.matchMedia('(prefers-color-scheme: dark)');
+    let preference = 'system';
     let current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
     const listeners = new Set();
 
+    function readPreference() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+      } catch (_) {}
+      return 'system';
+    }
+
+    function savePreference(pref) {
+      preference = pref;
+      try { localStorage.setItem(STORAGE_KEY, pref); } catch (_) {}
+    }
+
     function detect() {
       return MQ.matches ? 'dark' : 'light';
+    }
+
+    function resolveScheme() {
+      if (preference === 'light' || preference === 'dark') return preference;
+      return detect();
     }
 
     function label(scheme) {
@@ -31,15 +54,18 @@
       current = scheme;
       document.documentElement.dataset.theme = scheme;
       listeners.forEach((fn) => fn(scheme));
-      document.dispatchEvent(new CustomEvent('mb-colorscheme', { detail: { scheme } }));
+      document.dispatchEvent(new CustomEvent('mb-colorscheme', { detail: { scheme, preference } }));
       if (changed && IN_GAME) post('colorSchemeChanged', { scheme });
       return scheme;
     }
 
     function init() {
-      apply(detect());
+      preference = readPreference();
+      apply(resolveScheme());
       if (IN_GAME) post('colorSchemeChanged', { scheme: current });
-      const onChange = (e) => apply(e.matches ? 'dark' : 'light');
+      const onChange = (e) => {
+        if (preference === 'system') apply(e.matches ? 'dark' : 'light');
+      };
       if (typeof MQ.addEventListener === 'function') MQ.addEventListener('change', onChange);
       else if (typeof MQ.addListener === 'function') MQ.addListener(onChange);
     }
@@ -48,10 +74,24 @@
 
     return {
       get: () => current,
+      getPreference: () => preference,
       detect,
       isDark: () => current === 'dark',
       isLight: () => current === 'light',
       label: () => label(current),
+      toggle() {
+        const next = current === 'dark' ? 'light' : 'dark';
+        savePreference(next);
+        return apply(next);
+      },
+      set(scheme) {
+        savePreference(scheme === 'dark' ? 'dark' : 'light');
+        return apply(resolveScheme());
+      },
+      useSystem() {
+        savePreference('system');
+        return apply(resolveScheme());
+      },
       onChange(fn) {
         listeners.add(fn);
         return () => listeners.delete(fn);
@@ -61,8 +101,33 @@
 
   window.MBColorScheme = ColorScheme;
 
-  const $ = (sel, root) => (root || document).querySelector(sel);
-  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  function updateThemeToggleButtons() {
+    const isDark = ColorScheme.isDark();
+    const nextLabel = isDark ? 'Hell' : 'Dunkel';
+    $$('[data-theme-toggle]').forEach((btn) => {
+      btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+      btn.title = isDark ? 'Zu Hellmodus wechseln' : 'Zu Dunkelmodus wechseln';
+      const sun = $('.theme-icon-light', btn);
+      const moon = $('.theme-icon-dark', btn);
+      if (sun) sun.classList.toggle('hidden', isDark);
+      if (moon) moon.classList.toggle('hidden', !isDark);
+      if (btn.dataset.themeSettingsToggle) btn.textContent = nextLabel;
+    });
+    const labelEl = $('#settings-theme-label');
+    if (labelEl) labelEl.textContent = ColorScheme.label();
+    const demoEl = $('#demo-theme-indicator');
+    if (demoEl) demoEl.textContent = ColorScheme.label();
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-theme-toggle]');
+    if (!btn) return;
+    e.preventDefault();
+    ColorScheme.toggle();
+  });
+
+  ColorScheme.onChange(updateThemeToggleButtons);
+  updateThemeToggleButtons();
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -1286,12 +1351,17 @@
 
       <div class="panel">
         <div class="panel-body">
-          <div class="theme-info" id="settings-theme-info">
-            <span class="theme-info-label">System-Farbschema</span>
-            <span class="theme-info-value">
-              <span class="theme-indicator-dot" aria-hidden="true"></span>
-              <span id="settings-theme-label">${esc(ColorScheme.label())}</span>
-            </span>
+          <div class="theme-info">
+            <div class="theme-info-text">
+              <span class="theme-info-label">Farbschema</span>
+              <span class="theme-info-value">
+                <span class="theme-indicator-dot" aria-hidden="true"></span>
+                <span id="settings-theme-label">${esc(ColorScheme.label())}</span>
+              </span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-theme-toggle data-theme-settings-toggle>
+              ${ColorScheme.isDark() ? 'Hell' : 'Dunkel'}
+            </button>
           </div>
         </div>
       </div>
@@ -1318,11 +1388,7 @@
       </div>
     `;
 
-    const themeLabel = $('#settings-theme-label');
-    const refreshThemeLabel = () => {
-      if (themeLabel) themeLabel.textContent = ColorScheme.label();
-    };
-    ColorScheme.onChange(refreshThemeLabel);
+    updateThemeToggleButtons();
 
     $('#btn-save-settings').addEventListener('click', () => {
       const data = {
@@ -1593,20 +1659,17 @@
     buildBar() {
       const bar = $('#demo-bar');
       bar.classList.remove('hidden');
-      const renderThemeIndicator = () => {
-        const el = $('#demo-theme-indicator');
-        if (el) el.textContent = ColorScheme.label();
-      };
 
       bar.innerHTML = `
         <button data-demo="rental" class="active">Miet-UI</button>
         <button data-demo="admin">Admin-Menü</button>
         <button data-demo="hud">HUD</button>
-        <span class="theme-indicator" title="System-Farbschema">
+        <button type="button" class="theme-indicator" data-theme-toggle title="Farbschema wechseln">
           <span class="theme-indicator-dot" aria-hidden="true"></span>
           <span id="demo-theme-indicator">${esc(ColorScheme.label())}</span>
-        </span>
+        </button>
       `;
+      updateThemeToggleButtons();
       ColorScheme.onChange(renderThemeIndicator);
       let hudTimer = null;
 

@@ -242,6 +242,45 @@ html[data-theme="dark"] .contract-viewer-overlay {
 .statusbar-icons .ico { width: 15px; height: 15px; stroke-width: 1.4; }
 .statusbar-battery { width: 21px; }
 
+.btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.btn-theme-toggle:hover { color: var(--ink); }
+
+.btn-theme-toggle .ico {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.5;
+}
+
+.admin-sidebar-foot .btn-theme-toggle {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-sidebar-foot .btn-theme-toggle:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.theme-toggle-text { flex: 1; text-align: left; }
+
 .window-admin {
   width: min(1120px, 96vw);
   height: min(700px, 94vh);
@@ -1361,12 +1400,19 @@ html[data-theme="dark"] .contract-viewer-overlay {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
+  border: none;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.demo-bar .theme-indicator:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 
 .theme-indicator-dot {
@@ -1391,6 +1437,12 @@ html[data-theme="dark"] .theme-indicator-dot {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+
+.theme-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .theme-info-label {
