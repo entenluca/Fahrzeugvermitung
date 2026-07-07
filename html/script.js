@@ -325,6 +325,20 @@
     currentContractId: null,
   };
 
+  function getDefaultPaymentId(payments) {
+    if (!payments || !payments.length) return null;
+    const preferred = payments.find((p) => p.id === 'card' || p.id === 'bank');
+    return preferred ? preferred.id : payments[0].id;
+  }
+
+  function ensurePaymentSelected() {
+    if (rental.selectedPaymentId && rental.payments.some((p) => p.id === rental.selectedPaymentId)) {
+      return rental.selectedPaymentId;
+    }
+    rental.selectedPaymentId = getDefaultPaymentId(rental.payments);
+    return rental.selectedPaymentId;
+  }
+
   function showScreen(name) {
     Object.values(screens).forEach((s) => s.classList.add('hidden'));
     screens[name].classList.remove('hidden');
@@ -336,7 +350,7 @@
     rental.payments = data.payments || [];
     rental.selectedVehicle = null;
     rental.selectedDurationIdx = null;
-    rental.selectedPaymentId = null;
+    rental.selectedPaymentId = getDefaultPaymentId(rental.payments);
     rental.viewerMode = false;
     rental.canShowContract = false;
     rental.currentContractId = null;
@@ -387,7 +401,7 @@
       card.addEventListener('click', () => {
         rental.selectedVehicle = v;
         rental.selectedDurationIdx = null;
-        rental.selectedPaymentId = null;
+        rental.selectedPaymentId = getDefaultPaymentId(rental.payments);
         renderDetails();
         showScreen('details');
       });
@@ -428,10 +442,12 @@
 
     const payWrap = $('#payment-options');
     payWrap.innerHTML = '';
+    const activePaymentId = ensurePaymentSelected();
     rental.payments.forEach((p) => {
       const btn = document.createElement('button');
       btn.className = 'seg-item';
       btn.textContent = p.label;
+      if (p.id === activePaymentId) btn.classList.add('selected');
       btn.addEventListener('click', () => {
         rental.selectedPaymentId = p.id;
         $$('.seg-item', payWrap).forEach((b) => b.classList.remove('selected'));
