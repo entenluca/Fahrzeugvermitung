@@ -30,7 +30,6 @@
       const changed = scheme !== current;
       current = scheme;
       document.documentElement.dataset.theme = scheme;
-      document.documentElement.style.colorScheme = scheme;
       listeners.forEach((fn) => fn(scheme));
       document.dispatchEvent(new CustomEvent('mb-colorscheme', { detail: { scheme } }));
       if (changed && IN_GAME) post('colorSchemeChanged', { scheme });

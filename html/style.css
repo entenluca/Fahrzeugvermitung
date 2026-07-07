@@ -74,8 +74,8 @@ html[data-theme="dark"] {
   --shadow:    0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
-html[data-theme="light"] { color-scheme: light; }
-html[data-theme="dark"]  { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: normal; }
+html[data-theme="dark"]  { color-scheme: normal; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 * { font-family: var(--font); }
@@ -84,9 +84,32 @@ html, body {
   width: 100%;
   height: 100%;
   font-family: var(--font);
-  background: transparent;
+  background: transparent !important;
+  background-color: rgba(0, 0, 0, 0) !important;
   overflow: hidden;
   user-select: none;
+}
+
+/* color-scheme nur innerhalb der UI — nie auf html/body (FiveM CEF: sonst schwarzer Vollbild-Hintergrund) */
+.window,
+.window-admin,
+.window-rental,
+.overlay,
+.modal-overlay,
+.contract-viewer-overlay,
+.toast-stack,
+.rental-hud,
+.demo-bar {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] .window,
+html[data-theme="dark"] .window-admin,
+html[data-theme="dark"] .window-rental,
+html[data-theme="dark"] .overlay,
+html[data-theme="dark"] .modal-overlay,
+html[data-theme="dark"] .contract-viewer-overlay {
+  color-scheme: dark;
 }
 
 .hidden { display: none !important; }
@@ -112,8 +135,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 14, 20, 0.5);
+  background: rgba(10, 14, 20, 0.45);
   animation: overlay-in 160ms ease-out;
+  pointer-events: auto;
 }
 
 @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
