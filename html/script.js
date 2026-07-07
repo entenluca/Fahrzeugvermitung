@@ -680,8 +680,9 @@
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (!modalOverlay.classList.contains('hidden')) return closeModal();
-    if (contractViewerApp && !contractViewerApp.classList.contains('hidden')) return post('closeUI').then(() => closeAll());
-    post('closeUI').then(() => closeAll());
+    if (!rentalApp.classList.contains('hidden') || !adminApp.classList.contains('hidden') || (contractViewerApp && !contractViewerApp.classList.contains('hidden'))) {
+      post('closeUI');
+    }
   });
 
   // ════════════════════════════════════════════════

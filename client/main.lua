@@ -187,12 +187,33 @@ function OpenRentalUI(locationData)
     TriggerServerEvent('MB_Fahrzeugvermitung:requestOpenData', locationData.name)
 end
 
-local function CloseRentalUI()
+local function CloseAllUI()
     uiOpen = false
     currentLocation = nil
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'closeUI' })
 end
+
+RegisterNUICallback('closeUI', function(_, cb)
+    CloseAllUI()
+    cb({ success = true })
+end)
+
+-- Daten für die Miet-UI vom Server empfangen. Dadurch funktionieren auch
+-- ingame hinzugefügte Fahrzeuge ohne Config-Neustart im Client.
+RegisterNetEvent('MB_Fahrzeugvermitung:openRentalUI', function(payload)
+    if not uiOpen then return end
+    payload = payload or {}
+    SendNUIMessage({
+        action = 'openRental',
+        data = payload,
+        locationLabel = payload.locationLabel or (currentLocation and currentLocation.label) or 'Standort',
+        playerName = payload.playerName,
+        vehicles = payload.vehicles or {},
+        durations = payload.durations or Config.RentalDurations,
+        payments = payload.payments or Config.PaymentMethods,
+    })
+end)
 
 local function OpenStoredContract(contractData, allowShow)
     uiOpen = true
@@ -228,26 +249,6 @@ local function GetClosestPlayerServerId(maxDistance)
     return closestServerId, closestDistance
 end
 
-RegisterNUICallback('closeUI', function(_, cb)
-    CloseRentalUI()
-    cb('ok')
-end)
-
--- Daten für die Miet-UI vom Server empfangen. Dadurch funktionieren auch
--- ingame hinzugefügte Fahrzeuge ohne Config-Neustart im Client.
-RegisterNetEvent('MB_Fahrzeugvermitung:openRentalUI', function(payload)
-    if not uiOpen then return end
-    payload = payload or {}
-    SendNUIMessage({
-        action = 'openUI',
-        locationLabel = payload.locationLabel or (currentLocation and currentLocation.label) or 'Standort',
-        playerName = payload.playerName,
-        vehicles = payload.vehicles or {},
-        durations = payload.durations or Config.RentalDurations,
-        payments = payload.payments or Config.PaymentMethods,
-    })
-end)
-
 -- Adminpanel öffnen: /rentaladmin
 RegisterCommand(Config.AdminCommand or 'rentaladmin', function()
     if uiOpen then return end
@@ -270,7 +271,7 @@ RegisterNetEvent('MB_Fahrzeugvermitung:adminNotify', function(message, typ)
 end)
 
 RegisterNetEvent('MB_Fahrzeugvermitung:forceCloseUI', function()
-    CloseRentalUI()
+    CloseAllUI()
 end)
 
 RegisterNUICallback('adminSaveVehicle', function(data, cb)
@@ -416,7 +417,7 @@ end)
 
 RegisterNetEvent('MB_Fahrzeugvermitung:approved', function(rentalData)
     -- rentalData: { model, spawnPoint, durationMinutes, expireAt, plate, rentalId }
-    CloseRentalUI()
+    CloseAllUI()
     SpawnRentalVehicle(rentalData)
 end)
 
@@ -738,22 +739,6 @@ end)
 
 
 -- ============================================================
-local function MB_OpenRentalUI(payload)
-    payload = payload or {}
-    uiOpen = true
-    SetNuiFocus(true, true)
-
-    SendNUIMessage({
-        action = 'openRental',
-        location = payload.location or payload.locationLabel or 'Mietstation',
-        locationLabel = payload.locationLabel or payload.location or 'Mietstation',
-        playerName = payload.playerName or GetPlayerName(PlayerId()),
-        vehicles = payload.vehicles or {},
-        durations = payload.durations or {},
-        payments = payload.payments or {}
-    })
-end
-
 local function MB_OpenAdminUI(payload)
     payload = payload or {}
     uiOpen = true
@@ -764,10 +749,6 @@ local function MB_OpenAdminUI(payload)
         data = payload
     })
 end
-
-RegisterNetEvent('MB_Fahrzeugvermitung:openRentalUI', function(payload)
-    MB_OpenRentalUI(payload)
-end)
 
 RegisterNetEvent('MB_Fahrzeugvermitung:openAdminUI', function(payload)
     MB_OpenAdminUI(payload)
@@ -833,10 +814,6 @@ RegisterNetEvent('MB_Fahrzeugvermitung:openAdminUI', function(payload)
     MB_SendOpenAdmin(payload)
 end)
 
-RegisterNetEvent('MB_Fahrzeugvermitung:openRentalUI', function(payload)
-    MB_SendOpenRental(payload)
-end)
-
 RegisterCommand('rentaladmin', function()
     TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
 end, false)
@@ -847,12 +824,6 @@ end, false)
 
 RegisterNUICallback('requestAdminData', function(_, cb)
     TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
-    cb({ success = true })
-end)
-
-RegisterNUICallback('closeUI', function(_, cb)
-    uiOpen = false
-    SetNuiFocus(false, false)
     cb({ success = true })
 end)
 
