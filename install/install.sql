@@ -1,8 +1,7 @@
 -- ============================================================
--- OPTIONAL – wird NUR benötigt, wenn Config.UseDatabase = true
--- Dient ausschließlich der Protokollierung abgeschlossener
--- Vermietungen (Statistik/Übersicht). Für den normalen Betrieb
--- des Scripts ist KEINE Datenbank erforderlich.
+-- OPTIONAL – wird beim Start automatisch angelegt (Config.AutoDatabaseSetup)
+-- Dient der Protokollierung abgeschlossener Vermietungen (Statistik/Übersicht).
+-- Manuelles Importieren ist nur nötig, wenn AutoDatabaseSetup = false ist.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `MB_Fahrzeugvermitung_history` (

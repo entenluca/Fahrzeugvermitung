@@ -27,7 +27,7 @@ MB_Fahrzeugvermitung/
 ├── config.lua
 ├── client.lua
 ├── server.lua
-├── install.sql          (nur bei aktivierter Datenbank-Protokollierung nötig)
+├── install/install.sql  (wird bei AutoDatabaseSetup automatisch ausgeführt)
 └── html/
     ├── index.html
     ├── style.css
@@ -73,11 +73,14 @@ Datenbank — es fällt dann automatisch auf einfache Alternativen zurück
    ensure ox_lib          # falls genutzt
    ensure ox_target       # oder qtarget, falls genutzt
    ensure es_extended     # oder qb-core
-   ensure oxmysql         # nur falls Config.UseDatabase = true
+   ensure oxmysql         # empfohlen – Tabellen/Items werden beim Start automatisch angelegt
    ensure MB_Fahrzeugvermitung
    ```
-4. Falls `Config.UseDatabase = true` gesetzt ist: Inhalt von `install.sql`
-   einmalig in deine Datenbank importieren.
+4. ~~Falls `Config.UseDatabase = true` gesetzt ist: Inhalt von `install.sql`
+   einmalig in deine Datenbank importieren.~~
+   **Neu:** Mit `Config.AutoDatabaseSetup = true` (Standard) werden die SQL-Tabellen
+   und das ESX-Mietvertrag-Item beim ersten Start automatisch angelegt — kein manueller
+   SQL-Import nötig. `install/install.sql` dient nur noch als Referenz.
 5. Server neu starten bzw. Resource per `refresh` + `ensure MB_Fahrzeugvermitung`
    neu laden.
 
@@ -107,11 +110,13 @@ Config.UseOxLib = true              -- ox_lib-Notifications nutzen
 ```lua
 Config.UseDatabase = false
 Config.DatabaseTable = 'MB_Fahrzeugvermitung_history'
+Config.AutoDatabaseSetup = true   -- Tabellen + ESX-Item beim Start automatisch anlegen
+Config.AutoEnableDatabase = true  -- Protokollierung aktivieren, wenn oxmysql verfügbar ist
 ```
-Wird **nur** benötigt, wenn du abgeschlossene Mietvorgänge dauerhaft in der
-Datenbank protokollieren möchtest (z. B. für eine Statistik). Für den
-normalen Ablauf (mieten → fahren → Fahrzeug wird nach Ablauf gelöscht) ist
-**keine Datenbank erforderlich**.
+Die Mietprotokollierung nutzt **oxmysql**. Mit `AutoDatabaseSetup = true` (Standard) wird
+`install/install.sql` beim ersten Start automatisch ausgeführt — kein manueller Import nötig.
+Das ESX-Item `mietvertrag` wird bei ESX-Servern ebenfalls automatisch in die `items`-Tabelle
+eingetragen. Für den normalen Ablauf ohne Statistik ist **keine Datenbank erforderlich**.
 
 ### Mietverhalten
 ```lua
@@ -270,7 +275,8 @@ Config.ContractItem = {
 ### Item im Framework anlegen
 
 **ESX:**
-- Datei `esx_item.sql` importieren
+- Bei `Config.AutoDatabaseSetup = true` (Standard) wird das Item automatisch angelegt
+- Alternativ: `install/esx_item.sql` manuell importieren
 
 **QBCore:**
 - Inhalt aus `qb_item.lua` in deine `qb-core/shared/items.lua` übernehmen
@@ -328,8 +334,8 @@ Ablauf:
 5. Im geöffneten Vertrag kann der Spieler auf **„Spieler zeigen“** klicken.
 6. Der nächste Spieler in der Nähe bekommt denselben Vertrag mit Signatur angezeigt.
 
-Item-Dateien:
-- ESX: `esx_item.sql`
+Item-Dateien (Referenz / manuelle Einrichtung):
+- ESX: `install/esx_item.sql` (wird bei AutoDatabaseSetup automatisch eingetragen)
 - QBCore: `qb_item.lua`
 - ox_inventory: `ox_inventory_item.lua`
 
@@ -363,7 +369,7 @@ Config.ContractItem.Name = 'mietvertrag'
 ```
 
 ### ESX
-1. `esx_item.sql` importieren.
+1. Mit `Config.AutoDatabaseSetup = true` (Standard) wird das Item beim Start automatisch in die `items`-Tabelle eingetragen. Alternativ `install/esx_item.sql` manuell importieren.
 2. Resource neu starten.
 3. Das Script registriert `mietvertrag` automatisch mit `ESX.RegisterUsableItem`.
 

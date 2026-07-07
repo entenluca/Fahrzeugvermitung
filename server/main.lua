@@ -12,6 +12,119 @@ local adminStore = { vehicles = {}, locations = {} }
 local rentalHistory = {}
 local rentalStats = { total = 0, revenue = 0 }
 local contractStore = { contracts = {} }
+local databaseBootstrapDone = false
+
+-- ============================================================
+-- AUTOMATISCHES DATENBANK-SETUP (beim ersten Start)
+-- ============================================================
+local function SanitizeTableName(name)
+    name = tostring(name or '')
+    if name == '' or not name:match('^[%w_]+$') then
+        return 'MB_Fahrzeugvermitung_history'
+    end
+    return name
+end
+
+local function WaitForOxMySQL(maxWaitMs)
+    maxWaitMs = maxWaitMs or 15000
+    local waited = 0
+    while GetResourceState('oxmysql') ~= 'started' and waited < maxWaitMs do
+        Wait(250)
+        waited = waited + 250
+    end
+    return GetResourceState('oxmysql') == 'started'
+end
+
+local function DbExecute(sql, params)
+    local finished, result = false, nil
+    exports.oxmysql:execute(sql, params or {}, function(res)
+        result = res
+        finished = true
+    end)
+
+    local attempts = 0
+    while not finished and attempts < 80 do
+        Wait(100)
+        attempts = attempts + 1
+    end
+
+    if not finished then
+        return false, 'timeout'
+    end
+    return true, result
+end
+
+local function BuildHistoryTableSql(tableName)
+    return ([[
+CREATE TABLE IF NOT EXISTS `%s` (
+    `id`         INT NOT NULL AUTO_INCREMENT,
+    `identifier` VARCHAR(64)  NOT NULL,
+    `location`   VARCHAR(64)  NOT NULL,
+    `vehicle`    VARCHAR(64)  NOT NULL,
+    `plate`      VARCHAR(16)  NOT NULL,
+    `price`      INT NOT NULL,
+    `minutes`    INT NOT NULL,
+    `payment`    VARCHAR(16)  NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+]]):format(tableName)
+end
+
+local function EnsureEsxContractItem()
+    if Config.Framework ~= 'esx' then return true end
+    if not (Config.ContractItem and Config.ContractItem.Enabled) then return true end
+
+    local itemName = Config.ContractItem.Name or 'mietvertrag'
+    if not itemName:match('^[%w_]+$') then return false, 'invalid item name' end
+
+    local ok, err = DbExecute(
+        'INSERT IGNORE INTO `items` (`name`, `label`, `weight`) VALUES (?, ?, ?)',
+        { itemName, 'Mietvertrag', 1 }
+    )
+    if not ok then
+        return false, err
+    end
+    return true
+end
+
+local function RunAutoDatabaseSetup()
+    if databaseBootstrapDone then return end
+    if Config.AutoDatabaseSetup == false then return end
+
+    if not WaitForOxMySQL() then
+        print('[MB_Fahrzeugvermitung] Auto-Datenbank-Setup übersprungen: oxmysql nicht verfügbar.')
+        return
+    end
+
+    local tableName = SanitizeTableName(Config.DatabaseTable)
+    Config.DatabaseTable = tableName
+
+    local ok, err = DbExecute(BuildHistoryTableSql(tableName))
+    if not ok then
+        print(('[MB_Fahrzeugvermitung] Auto-Datenbank-Setup fehlgeschlagen (Tabelle %s): %s'):format(tableName, tostring(err)))
+        return
+    end
+
+    local itemOk, itemErr = EnsureEsxContractItem()
+    if itemOk then
+        if Config.Framework == 'esx' and Config.ContractItem and Config.ContractItem.Enabled then
+            print(('[MB_Fahrzeugvermitung] ESX-Item "%s" automatisch in der Datenbank registriert.'):format(Config.ContractItem.Name or 'mietvertrag'))
+        end
+    else
+        print(('[MB_Fahrzeugvermitung] ESX-Item konnte nicht automatisch registriert werden: %s'):format(tostring(itemErr)))
+    end
+
+    if Config.AutoEnableDatabase then
+        Config.UseDatabase = true
+    end
+
+    databaseBootstrapDone = true
+    print(('[MB_Fahrzeugvermitung] Datenbank-Setup abgeschlossen (Tabelle: %s, Protokollierung: %s).'):format(
+        tableName,
+        Config.UseDatabase and 'aktiv' or 'inaktiv'
+    ))
+end
 
 -- Globaler Forward-Fix: alte Admin-Funktionen rufen BuildAdminLocations global auf.
 _G.BuildAdminLocations = _G.BuildAdminLocations
@@ -679,6 +792,11 @@ end
 
 LoadAdminStore()
 LoadContractStore()
+
+CreateThread(function()
+    RunAutoDatabaseSetup()
+end)
+
 RegisterContractUsableItem()
 
 -- Delayed item registration: falls ESX/QBCore beim Laden noch nicht komplett bereit ist.

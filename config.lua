@@ -27,6 +27,12 @@ Config.UseOxLib = true            -- true = ox_lib Notifications/Progressbar, fa
 Config.UseDatabase = false
 Config.DatabaseTable = 'MB_Fahrzeugvermitung_history'
 
+-- Beim ersten Start werden Tabellen und (bei ESX) Items automatisch angelegt,
+-- sobald oxmysql verfügbar ist. Manuelles Importieren von install.sql entfällt.
+Config.AutoDatabaseSetup = true
+-- Aktiviert die Mietprotokollierung automatisch, wenn oxmysql läuft und das Setup erfolgreich war.
+Config.AutoEnableDatabase = true
+
 -- ============================================================
 -- MIETVERHALTEN
 -- ============================================================
