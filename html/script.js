@@ -683,6 +683,55 @@
     tab: 'overview',
   };
 
+  let pendingErrorAlert = null;
+
+  function updateErrorBadge(count) {
+    const badge = $('#admin-errors-badge');
+    if (!badge) return;
+    const n = Math.max(0, Number(count) || 0);
+    badge.textContent = String(n);
+    badge.classList.toggle('hidden', n <= 0);
+  }
+
+  function showErrorAlert(payload) {
+    const err = (payload && payload.error) || payload || {};
+    openModal({
+      title: 'Es wurde ein Fehler erkannt.',
+      bodyHTML: `
+        <p class="modal-warn-text"><strong>${esc(err.description || 'Unbekannter Fehler')}</strong></p>
+        ${err.system ? `<p class="error-alert-meta"><span class="error-alert-label">System</span> ${esc(err.system)}</p>` : ''}
+        ${err.playerName ? `<p class="error-alert-meta"><span class="error-alert-label">Spieler</span> ${esc(err.playerName)}</p>` : ''}
+        ${err.hint ? `<p class="error-alert-hint">${esc(err.hint)}</p>` : ''}
+      `,
+      buttons: [
+        { label: 'Später', cls: 'btn-secondary' },
+        {
+          label: 'Zur Fehlerhistorie',
+          cls: 'btn-primary',
+          onClick: () => {
+            setAdminTab('errors');
+            adminSend('markErrorsSeen');
+          },
+        },
+      ],
+    });
+  }
+
+  function maybeShowPendingErrorAlert(data) {
+    const unread = Number((data && data.errorUnread) || 0);
+    updateErrorBadge(unread);
+    if (pendingErrorAlert) {
+      const alert = pendingErrorAlert;
+      pendingErrorAlert = null;
+      setTimeout(() => showErrorAlert(alert), 180);
+      return;
+    }
+    if (unread > 0 && adminApp && !adminApp.classList.contains('hidden')) {
+      const latest = Array.isArray(data && data.errors) ? data.errors[0] : null;
+      if (latest) setTimeout(() => showErrorAlert({ error: latest }), 180);
+    }
+  }
+
 
   function normalizeAdminPayload(payload) {
     payload = payload || {};
@@ -692,6 +741,7 @@
     const durations = Array.isArray(payload.durations) ? payload.durations : [];
     const payments = Array.isArray(payload.payments) ? payload.payments : [];
     const rentals = Array.isArray(payload.rentals) ? payload.rentals : [];
+    const errors = Array.isArray(payload.errors) ? payload.errors : [];
 
     return {
       vehicles,
@@ -699,6 +749,8 @@
       durations,
       payments,
       rentals,
+      errors,
+      errorUnread: Number(payload.errorUnread) || 0,
       stats: payload.stats || { active: rentals.length, total: 0, revenue: 0, history: [] },
       settings: payload.settings || {},
     };
@@ -734,6 +786,7 @@
   function applyAdminData(data) {
     admin.data = normalizeAdminPayload(data);
     admin.fetchedAt = Date.now();
+    updateErrorBadge(admin.data.errorUnread);
     safeRenderAdminTab();
   }
 
@@ -743,7 +796,9 @@
     admin.tab = admin.tab || 'overview';
     adminApp.classList.remove('hidden');
     rentalApp.classList.add('hidden');
+    updateErrorBadge(admin.data.errorUnread);
     setAdminTab(admin.tab);
+    maybeShowPendingErrorAlert(admin.data);
   }
 
   // Tab-Navigation
@@ -759,6 +814,11 @@
 
     const target = $(`#tab-${admin.tab}`);
     if (target) target.classList.remove('hidden');
+
+    if (admin.tab === 'errors') {
+      adminSend('markErrorsSeen');
+      updateErrorBadge(0);
+    }
 
     safeRenderAdminTab();
   }
@@ -843,6 +903,7 @@
     if (admin.tab === 'locations') return renderLocationsTab();
     if (admin.tab === 'durations') return renderDurationsTab();
     if (admin.tab === 'settings') { try { return renderSettingsTab(); } catch (e) { console.error(e); return renderSettingsTabSafeFallback(); } }
+    if (admin.tab === 'errors') return renderErrorsTab();
 
     admin.tab = 'overview';
     return renderOverview();
@@ -1351,6 +1412,73 @@
     });
   }
 
+  // ── Tab: Fehlerhistorie ──
+  function renderErrorsTab() {
+    const d = admin.data || normalizeAdminPayload({});
+    const wrap = $('#tab-errors');
+    const errors = d.errors || [];
+
+    const rows = errors.map((err) => `
+      <tr>
+        <td class="td-muted">${esc(err.timeLabel || '—')}</td>
+        <td class="td-strong">${esc(err.description || '—')}</td>
+        <td><span class="code">${esc(err.system || '—')}</span></td>
+        <td>${esc(err.playerName || '—')}</td>
+        <td class="error-hint-cell">${err.hint ? esc(err.hint) : '<span class="td-muted">—</span>'}</td>
+        <td><span class="badge ${err.severity === 'warning' ? 'badge-neutral' : 'badge-danger'}">${err.severity === 'warning' ? 'Warnung' : 'Fehler'}</span></td>
+      </tr>
+    `).join('');
+
+    wrap.innerHTML = `
+      <div class="tab-head">
+        <div class="tab-head-text">
+          <span class="tab-title">Fehlerhistorie</span>
+          <span class="tab-sub">Automatisch erkannte Probleme — Zeitpunkt, System, Spieler und Lösungshinweise</span>
+        </div>
+        <button class="btn btn-danger btn-sm" id="btn-clear-errors" ${errors.length ? '' : 'disabled'}>Historie leeren</button>
+      </div>
+
+      <div class="panel">
+        ${rows ? `
+          <table class="table table-errors">
+            <thead>
+              <tr>
+                <th>Zeit</th>
+                <th>Beschreibung</th>
+                <th>System</th>
+                <th>Spieler</th>
+                <th>Hinweis</th>
+                <th>Typ</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        ` : '<div class="table-empty">Noch keine Fehler protokolliert.</div>'}
+      </div>
+    `;
+
+    const clearBtn = $('#btn-clear-errors', wrap);
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        openModal({
+          title: 'Fehlerhistorie leeren',
+          bodyHTML: '<p class="modal-warn-text">Alle protokollierten Fehler werden dauerhaft gelöscht. Fortfahren?</p>',
+          buttons: [
+            { label: 'Abbrechen', cls: 'btn-secondary' },
+            {
+              label: 'Leeren',
+              cls: 'btn-danger',
+              onClick: () => {
+                adminSend('clearErrors');
+                toast('Fehlerhistorie geleert.', 'success');
+              },
+            },
+          ],
+        });
+      });
+    }
+  }
+
   // ── Tab: Einstellungen ──
   function renderSettingsTab() {
     const s = admin.data.settings || {};
@@ -1539,6 +1667,20 @@
         showScreen('contract');
         toast(data.reason || 'Die Miete konnte nicht gestartet werden.', 'error');
         break;
+      case 'systemError':
+        toast(data.message || 'Es ist ein technisches Problem aufgetreten. Das Team wurde informiert.', 'error');
+        break;
+      case 'adminErrorAlert':
+        if (adminApp && !adminApp.classList.contains('hidden')) {
+          showErrorAlert(data.data || data.payload || {});
+          post('requestAdminData');
+        } else {
+          pendingErrorAlert = data.data || data.payload || {};
+        }
+        break;
+      case 'adminDataRefresh':
+        if (adminApp && !adminApp.classList.contains('hidden')) post('requestAdminData');
+        break;
       case 'openStoredContract': renderStoredContract(data.contract || {}, data.allowShow === true); break;
       case 'updateRentalHud': updateRentalHud(data); break;
       case 'adminData':       applyAdminData(data.data || data.payload || {}); break;
@@ -1588,6 +1730,19 @@
             { time: '06.07. 11:15', player: 'Tom Fischer',  vehicle: 'Devauchee Quail',      location: 'Flughafen Vermietung', minutes: 120, price: 1500 },
           ],
         },
+        errors: [
+          {
+            id: 'err_demo_1',
+            timeLabel: '07.07. 11:42',
+            description: 'Mietvertrag-Item "mietvertrag" konnte nicht vergeben werden.',
+            system: 'ox_inventory / Item-Setup',
+            playerName: 'Jonas Weber',
+            hint: 'Item in ox_inventory/data/items.lua anlegen.',
+            severity: 'error',
+            seen: false,
+          },
+        ],
+        errorUnread: 1,
       };
 
       rental.playerName = 'Alex Muster';
@@ -1667,6 +1822,14 @@
         const r = d.rentals.find((x) => x.src === data.src);
         if (r) r.remaining = (r.remaining - Math.floor((Date.now() - admin.fetchedAt) / 1000)) + data.minutes * 60;
         toast(`Miete um ${data.minutes} Minuten verlängert.`, 'success');
+      }
+      if (action === 'markErrorsSeen') {
+        d.errorUnread = 0;
+        (d.errors || []).forEach((e) => { e.seen = true; });
+      }
+      if (action === 'clearErrors') {
+        d.errors = [];
+        d.errorUnread = 0;
       }
 
       applyAdminData(this.adminSnapshot());

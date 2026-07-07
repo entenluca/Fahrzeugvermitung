@@ -388,6 +388,25 @@ RegisterNetEvent('MB_Fahrzeugvermitung:denied', function(reason)
     Notify(reason, 'error')
 end)
 
+RegisterNetEvent('MB_Fahrzeugvermitung:systemError', function(payload)
+    payload = type(payload) == 'table' and payload or { message = tostring(payload) }
+    SendNUIMessage({
+        action = 'systemError',
+        message = payload.message or 'Es ist ein technisches Problem aufgetreten.',
+        code = payload.code,
+    })
+    Notify(payload.message or 'Es ist ein technisches Problem aufgetreten. Das Team wurde informiert.', 'error')
+end)
+
+RegisterNetEvent('MB_Fahrzeugvermitung:adminErrorAlert', function(payload)
+    SendNUIMessage({ action = 'adminErrorAlert', data = payload or {} })
+    Notify('Es wurde ein Fehler erkannt — bitte Fehlerhistorie im Admin-Panel prüfen.', 'error')
+end)
+
+RegisterNetEvent('MB_Fahrzeugvermitung:adminDataUpdated', function()
+    SendNUIMessage({ action = 'adminDataRefresh' })
+end)
+
 RegisterNetEvent('MB_Fahrzeugvermitung:approved', function(rentalData)
     -- rentalData: { model, spawnPoint, durationMinutes, expireAt, plate, rentalId }
     CloseRentalUI()
@@ -431,6 +450,12 @@ function SpawnRentalVehicle(rentalData)
         tries = tries + 1
     end
     if not HasModelLoaded(rentalData.model) then
+        TriggerServerEvent('MB_Fahrzeugvermitung:reportClientError', {
+            description = ('Fahrzeugmodell "%s" konnte nicht geladen werden.'):format(tostring(rentalData.model)),
+            system = 'GTA / Fahrzeug-Spawn',
+            hint = 'Spawn-Modell im Admin-Panel prüfen — es muss ein gültiges GTA-Fahrzeug sein.',
+            code = 'vehicle_model_load_failed',
+        })
         Notify('Fahrzeugmodell konnte nicht geladen werden.', 'error')
         return
     end

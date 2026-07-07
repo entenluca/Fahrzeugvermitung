@@ -94,6 +94,13 @@ local function RunAutoDatabaseSetup()
 
     if not WaitForOxMySQL() then
         print('[MB_Fahrzeugvermitung] Auto-Datenbank-Setup übersprungen: oxmysql nicht verfügbar.')
+        ReportError({
+            description = 'Automatisches Datenbank-Setup übersprungen: oxmysql nicht verfügbar.',
+            system = 'oxmysql / Datenbank',
+            hint = 'oxmysql installieren und in der server.cfg vor dieser Resource starten.',
+            code = 'oxmysql_missing',
+            notifyPlayer = false,
+        })
         return
     end
 
@@ -103,6 +110,13 @@ local function RunAutoDatabaseSetup()
     local ok, err = DbExecute(BuildHistoryTableSql(tableName))
     if not ok then
         print(('[MB_Fahrzeugvermitung] Auto-Datenbank-Setup fehlgeschlagen (Tabelle %s): %s'):format(tableName, tostring(err)))
+        ReportError({
+            description = ('Miet-Historie-Tabelle konnte nicht erstellt werden (%s).'):format(tableName),
+            system = 'oxmysql / Datenbank',
+            hint = 'MySQL-Verbindung und Berechtigungen prüfen. Fehler: ' .. tostring(err),
+            code = 'db_table_create',
+            notifyPlayer = false,
+        })
         return
     end
 
@@ -113,6 +127,13 @@ local function RunAutoDatabaseSetup()
         end
     else
         print(('[MB_Fahrzeugvermitung] ESX-Item konnte nicht automatisch registriert werden: %s'):format(tostring(itemErr)))
+        ReportError({
+            description = ('ESX-Mietvertrag-Item "%s" konnte nicht registriert werden.'):format(Config.ContractItem.Name or 'mietvertrag'),
+            system = 'ESX / Datenbank-Items',
+            hint = 'Item manuell in der ESX-items-Tabelle anlegen oder SQL-Rechte prüfen.',
+            code = 'esx_item_register',
+            notifyPlayer = false,
+        })
     end
 
     if Config.AutoEnableDatabase then
@@ -358,6 +379,13 @@ local function LoadContractStore()
         if ok and type(decoded) == 'table' then
             contractStore = NormalizeContractStore(decoded)
         else
+            ReportError({
+                description = ('Mietverträge konnten nicht gelesen werden (%s).'):format(file),
+                system = 'data/rental_contracts.json',
+                hint = 'JSON-Syntax der Vertragsdatei prüfen.',
+                code = 'contract_store_decode',
+                notifyPlayer = false,
+            })
             contractStore = { contracts = {} }
         end
     else
@@ -465,12 +493,26 @@ local function GiveContractItem(src, contract)
     if mode == 'ox_inventory' then
         if GetResourceState('ox_inventory') ~= 'started' then
             print('[MB_Fahrzeugvermitung] ox_inventory ist nicht gestartet, Mietvertrag-Item konnte nicht vergeben werden.')
+            ReportError({
+                src = src,
+                description = 'Mietvertrag konnte nicht ins Inventar gelegt werden: ox_inventory nicht gestartet.',
+                system = 'ox_inventory',
+                hint = 'ox_inventory in der server.cfg vor MB_Fahrzeugvermitung starten.',
+                code = 'ox_inventory_stopped',
+            })
             return false
         end
 
         local ok = exports.ox_inventory:AddItem(src, itemName, 1, meta)
         if ok == false then
             print(('[MB_Fahrzeugvermitung] ox_inventory:AddItem fehlgeschlagen für Item %s'):format(itemName))
+            ReportError({
+                src = src,
+                description = ('Mietvertrag-Item "%s" konnte nicht vergeben werden.'):format(itemName),
+                system = 'ox_inventory / Item-Setup',
+                hint = ('Item "%s" in ox_inventory/data/items.lua anlegen und Resource neu starten.'):format(itemName),
+                code = 'missing_contract_item',
+            })
         end
         return ok ~= false
     end
@@ -552,6 +594,13 @@ local function LoadAdminStore()
             adminStore = NormalizeStore(decoded)
         else
             print(('[MB_Fahrzeugvermitung] %s konnte nicht gelesen werden. Starte mit leerem Admin-Speicher.'):format(file))
+            ReportError({
+                description = ('Admin-Daten konnten nicht gelesen werden (%s).'):format(file),
+                system = 'data/admin_vehicles.json',
+                hint = 'JSON-Syntax prüfen oder die Datei mit einem leeren Objekt ersetzen.',
+                code = 'admin_store_decode',
+                notifyPlayer = false,
+            })
             adminStore = { vehicles = {}, locations = {}, deletedConfigVehicles = {} }
         end
     else
@@ -763,6 +812,8 @@ local function BuildAdminPayload()
             revenue = rentalStats.revenue or 0,
             history = rentalHistory,
         },
+        errors = MBErrors and MBErrors.GetLog and MBErrors.GetLog() or {},
+        errorUnread = MBErrors and MBErrors.GetUnreadCount and MBErrors.GetUnreadCount() or 0,
     }
 end
 
@@ -807,6 +858,26 @@ local function IsAdmin(src)
     return false
 end
 
+local function ReportError(opts)
+    if MBErrors and MBErrors.Report then
+        return MBErrors.Report(opts)
+    end
+end
+
+MBErrors.SetCallbacks({
+    isAdmin = IsAdmin,
+    getPlayerName = GetCharacterName,
+})
+MBErrors.Load()
+
+local function DenyRental(src, message, reportOpts)
+    if reportOpts then
+        reportOpts.src = reportOpts.src or src
+        ReportError(reportOpts)
+    end
+    TriggerClientEvent('MB_Fahrzeugvermitung:denied', src, message)
+end
+
 local function NotifyAdmin(src, message, typ)
     TriggerClientEvent('MB_Fahrzeugvermitung:adminNotify', src, message, typ or 'success')
 end
@@ -849,6 +920,13 @@ local function LogRental(data)
     end)
     if not ok then
         print('[MB_Fahrzeugvermitung] Datenbank-Logging fehlgeschlagen: ' .. tostring(err))
+        ReportError({
+            description = 'Miet-Historie konnte nicht in die Datenbank geschrieben werden.',
+            system = 'oxmysql / Miet-Historie',
+            hint = 'MySQL-Verbindung prüfen. Fehler: ' .. tostring(err),
+            code = 'db_rental_log',
+            notifyPlayer = false,
+        })
     end
 end
 
@@ -1084,7 +1162,13 @@ RegisterNetEvent('MB_Fahrzeugvermitung:requestOpenData', function(locationName)
     local src = source
     local payload = BuildLocationPayload(locationName)
     if not payload then
-        TriggerClientEvent('MB_Fahrzeugvermitung:denied', src, 'Ungültiger Vermietungsstandort.')
+        DenyRental(src, 'Ungültiger Vermietungsstandort.', {
+            description = ('Ungültiger Vermietungsstandort: %s'):format(tostring(locationName)),
+            system = 'Miet-UI / Standorte',
+            hint = 'Standort im Admin-Panel prüfen oder NPC/Interaktion neu laden.',
+            code = 'invalid_rental_location',
+            playerMessage = 'An diesem Standort ist die Vermietung derzeit nicht verfügbar. Das Team wurde informiert.',
+        })
         return
     end
     TriggerClientEvent('MB_Fahrzeugvermitung:openRentalUI', src, payload)
@@ -1439,6 +1523,19 @@ RegisterNetEvent('MB_Fahrzeugvermitung:adminAction', function(action, data)
         return
     end
 
+    if action == 'markErrorsSeen' then
+        if MBErrors and MBErrors.MarkAllSeen then MBErrors.MarkAllSeen() end
+        BroadcastAdminPayload(src)
+        return
+    end
+
+    if action == 'clearErrors' then
+        if MBErrors and MBErrors.Clear then MBErrors.Clear() end
+        NotifyAdmin(src, 'Fehlerhistorie geleert.', 'success')
+        BroadcastAdminPayload(src)
+        return
+    end
+
     NotifyAdmin(src, 'Unbekannte Admin-Aktion.', 'error')
 end)
 
@@ -1544,6 +1641,14 @@ RegisterNetEvent('MB_Fahrzeugvermitung:requestRental', function(payload)
         if gaveItem then
             NotifyPlayer(src, 'Du hast den unterschriebenen Mietvertrag als Item erhalten.', 'success')
         else
+            ReportError({
+                src = src,
+                description = 'Mietvertrag gespeichert, aber die Item-Vergabe ist fehlgeschlagen.',
+                system = 'Inventar / Mietvertrag-Item',
+                hint = 'Prüfe ox_inventory-Item-Definition und Inventarplatz des Spielers.',
+                code = 'contract_item_grant_failed',
+                severity = 'warning',
+            })
             NotifyPlayer(src, 'Mietvertrag wurde gespeichert, aber das Item konnte nicht ins Inventar gelegt werden.', 'warning')
         end
     end
@@ -1738,7 +1843,9 @@ local function MB_SAFE_AdminPayload()
             revenue = 0,
             history = {}
         },
-        settings = { cooldown = 0, deposit = 0 }
+        settings = { cooldown = 0, deposit = 0 },
+        errors = MBErrors and MBErrors.GetLog and MBErrors.GetLog() or {},
+        errorUnread = MBErrors and MBErrors.GetUnreadCount and MBErrors.GetUnreadCount() or 0,
     }
 end
 
@@ -1808,3 +1915,17 @@ RegisterNetEvent('MB_Fahrzeugvermitung:requestRentalData', function(locationKey)
     TriggerEvent('MB_Fahrzeugvermitung:server:openRentalAtLocation', locationKey)
 end)
 
+RegisterNetEvent('MB_Fahrzeugvermitung:reportClientError', function(payload)
+    payload = type(payload) == 'table' and payload or {}
+    ReportError({
+        src = source,
+        description = payload.description or 'Client-seitiger Fehler',
+        system = payload.system or 'client/main.lua',
+        hint = payload.hint or '',
+        code = payload.code or 'client_error',
+        severity = payload.severity or 'error',
+        playerMessage = payload.playerMessage,
+        notifyPlayer = payload.notifyPlayer ~= false,
+        alertAdmins = payload.alertAdmins ~= false,
+    })
+end)

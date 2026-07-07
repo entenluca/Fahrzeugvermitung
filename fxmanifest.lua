@@ -5,7 +5,7 @@ lua54 'yes'
 name 'MB_Fahrzeugvermitung'
 author 'MB'
 description 'Fahrzeugvermietung'
-version '1.1.4'
+version '1.2.0'
 
 shared_script 'config.lua'
 
@@ -19,6 +19,7 @@ exports {
 }
 
 server_scripts {
+    'server/errors.lua',
     'server/main.lua'
 }
 
@@ -37,6 +38,7 @@ files {
 
     'data/admin_vehicles.json',
     'data/rental_contracts.json',
+    'data/error_log.json',
     'admin_vehicles.json',
     'rental_contracts.json'
 }

@@ -59,6 +59,15 @@ Config.AdminAce = 'MB_Fahrzeugvermitung.admin'
 Config.AdminGroups = { 'admin', 'superadmin', 'god' }
 Config.AdminStorageFile = 'data/admin_vehicles.json'  -- Admin-Daten (JSON, nicht MySQL)
 
+-- ============================================================
+-- FEHLERERKENNUNG & FEHLERHISTORIE
+-- ============================================================
+Config.ErrorLog = {
+    Enabled = true,
+    StorageFile = 'data/error_log.json',
+    MaxEntries = 100,
+}
+
 Config.AdminLocationPed = {
     Enabled = true,
     DefaultModel = 's_m_m_autoshop_01',

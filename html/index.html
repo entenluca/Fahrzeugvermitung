@@ -251,6 +251,11 @@
           <svg viewBox="0 0 16 16" class="ico"><circle cx="8" cy="8" r="2.2"></circle><path d="M8 2v1.6M8 12.4V14M2 8h1.6M12.4 8H14M3.8 3.8l1.1 1.1M11.1 11.1l1.1 1.1M12.2 3.8l-1.1 1.1M4.9 11.1l-1.1 1.1"></path></svg>
           Einstellungen
         </button>
+        <button type="button" class="admin-nav-item" data-tab="errors">
+          <svg viewBox="0 0 16 16" class="ico"><path d="M8 1.5l6.5 11.5H1.5L8 1.5z"></path><path d="M8 6.2v3.4M8 11.4h.01"></path></svg>
+          Fehlerhistorie
+          <span class="admin-nav-badge hidden" id="admin-errors-badge">0</span>
+        </button>
       </nav>
 
       <div class="admin-sidebar-foot">
@@ -269,6 +274,7 @@
       <div class="admin-tab hidden" id="tab-locations"></div>
       <div class="admin-tab hidden" id="tab-durations"></div>
       <div class="admin-tab hidden" id="tab-settings"></div>
+      <div class="admin-tab hidden" id="tab-errors"></div>
     </main>
 
   </div>
