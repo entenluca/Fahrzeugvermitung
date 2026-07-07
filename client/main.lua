@@ -188,6 +188,10 @@ function OpenRentalUI(locationData)
 end
 
 local function CloseAllUI()
+    if not uiOpen then
+        SetNuiFocus(false, false)
+        return
+    end
     uiOpen = false
     currentLocation = nil
     SetNuiFocus(false, false)
@@ -197,6 +201,22 @@ end
 RegisterNUICallback('closeUI', function(_, cb)
     CloseAllUI()
     cb({ success = true })
+end)
+
+-- ESC-Fallback: NUI bekommt Escape in FiveM nicht immer zuverlässig
+CreateThread(function()
+    while true do
+        if uiOpen then
+            DisableControlAction(0, 200, true) -- Pause / ESC
+            DisableControlAction(0, 322, true) -- ESC
+            if IsDisabledControlJustReleased(0, 200) or IsDisabledControlJustReleased(0, 322) then
+                CloseAllUI()
+            end
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
 end)
 
 -- Daten für die Miet-UI vom Server empfangen. Dadurch funktionieren auch
@@ -767,17 +787,8 @@ local function MB_SendOpenAdmin(payload)
     uiOpen = true
     SetNuiFocus(true, true)
 
-    -- Neues Format
     SendNUIMessage({
         action = 'openAdmin',
-        data = payload,
-        admin = payload
-    })
-
-    -- Altes Format, falls script.js dieses erwartet
-    SendNUIMessage({
-        type = 'openAdmin',
-        action = 'adminOpen',
         data = payload,
         admin = payload
     })
@@ -809,21 +820,8 @@ RegisterNetEvent('MB_Fahrzeugvermitung:client:openRental', function(payload)
     MB_SendOpenRental(payload)
 end)
 
--- Kompatibilität mit älteren Versionen
-RegisterNetEvent('MB_Fahrzeugvermitung:openAdminUI', function(payload)
-    MB_SendOpenAdmin(payload)
-end)
-
-RegisterCommand('rentaladmin', function()
-    TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
-end, false)
-
-RegisterCommand('adminrental', function()
-    TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
-end, false)
-
 RegisterNUICallback('requestAdminData', function(_, cb)
-    TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
+    TriggerServerEvent('MB_Fahrzeugvermitung:requestAdminPanel')
     cb({ success = true })
 end)
 
@@ -856,12 +854,8 @@ RegisterNetEvent('MB_Fahrzeugvermitung:client:forceOpenAdmin', function(payload)
     })
 end)
 
-RegisterCommand('rentaladmin', function()
-    TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
-end, false)
-
 RegisterCommand('adminrental', function()
-    TriggerServerEvent('MB_Fahrzeugvermitung:server:forceOpenAdmin')
+    TriggerServerEvent('MB_Fahrzeugvermitung:requestAdminPanel')
 end, false)
 -- === /MB_UI_OPEN_LAST_RESORT_CLIENT ===
 

@@ -313,6 +313,18 @@
 
   let lastAdminSaveAt = 0;
 
+  function isAnyAppOpen() {
+    return !rentalApp.classList.contains('hidden')
+      || !adminApp.classList.contains('hidden')
+      || (contractViewerApp && !contractViewerApp.classList.contains('hidden'));
+  }
+
+  function requestCloseUI() {
+    closeModal();
+    closeAll();
+    if (IN_GAME) post('closeUI').catch(() => {});
+  }
+
   const rental = {
     vehicles: [],
     durations: [],
@@ -375,10 +387,6 @@
   }
 
   function closeAll() {
-    // Ignore accidental close right after admin save.
-    if (Date.now() - lastAdminSaveAt < 1200 && adminApp && !adminApp.classList.contains('hidden')) {
-      return;
-    }
     rentalApp.classList.add('hidden');
     if (contractViewerApp) {
       contractViewerApp.classList.add('hidden');
@@ -671,19 +679,26 @@
     const target = e.target.closest('[data-action]');
     if (!target) return;
     const action = target.dataset.action;
-    if (action === 'close') return post('closeUI').then(() => closeAll());
+    if (action === 'close') {
+      e.preventDefault();
+      return requestCloseUI();
+    }
     if (action === 'back-to-vehicles') return showScreen('vehicles');
     if (action === 'back-to-details') {
-      if (rental.viewerMode) return post('closeUI').then(() => closeAll());
+      if (rental.viewerMode) return requestCloseUI();
       return showScreen('details');
     }
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (!modalOverlay.classList.contains('hidden')) return closeModal();
-    if (!rentalApp.classList.contains('hidden') || !adminApp.classList.contains('hidden') || (contractViewerApp && !contractViewerApp.classList.contains('hidden'))) {
-      post('closeUI');
+    if (!modalOverlay.classList.contains('hidden')) {
+      e.preventDefault();
+      return closeModal();
+    }
+    if (isAnyAppOpen()) {
+      e.preventDefault();
+      requestCloseUI();
     }
   });
 
@@ -1684,7 +1699,7 @@
 
     app.addEventListener('click', (e) => {
       if (e.target === app || e.target.closest('[data-viewer-close]')) {
-        return post('closeUI').then(() => closeAll());
+        return requestCloseUI();
       }
 
       if (e.target.closest('[data-viewer-show]')) {
@@ -1993,16 +2008,12 @@
     },
   };
 
-  // MB_FIX_UNIFIED_OPEN_HANDLER
+  // MB_FIX_UNIFIED_OPEN_HANDLER — nur openRental, Admin wird im switch oben behandelt
   window.addEventListener('message', (event) => {
     const msg = event.data || {};
     const action = msg.action || msg.type;
-
-    if (action === 'forceOpenAdmin' || action === 'openAdmin' || action === 'adminOpen' || action === 'openAdminPanel') {
-      openAdminApp(msg.data || msg.payload || msg.admin || {});
-    }
-
     if (action === 'openRental' || action === 'rentalOpen') {
+      if (!rentalApp.classList.contains('hidden')) return;
       openRentalApp(msg.data || msg.payload || msg);
     }
   });
