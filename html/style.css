@@ -1087,7 +1087,7 @@ html[data-theme="dark"] .contract-viewer-overlay {
 .duration-table-head,
 .duration-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) 96px 96px 40px;
+  grid-template-columns: minmax(140px, 1fr) 64px 64px 88px;
   gap: 12px;
   align-items: center;
 }
@@ -1128,25 +1128,21 @@ html[data-theme="dark"] .contract-viewer-overlay {
   text-overflow: ellipsis;
 }
 
-.input-compact {
-  height: 36px;
-  padding: 0 10px;
+.duration-row .input-compact {
+  width: 100%;
+  max-width: 64px;
+  height: 32px;
+  padding: 0 6px;
+  font-size: 13px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
-.input-compact[data-du-mult] { text-align: right; }
+.duration-row .input-compact[data-du-mult] { text-align: center; }
 
-.duration-remove {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  color: var(--muted);
-}
-
-.duration-remove:hover {
-  color: var(--danger);
-  background: var(--danger-bg);
+.duration-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .duration-empty {
@@ -1434,7 +1430,7 @@ html[data-theme="dark"] .theme-indicator-dot {
   .screen-header, .screen-body, .screen-footer { padding-left: 16px; padding-right: 16px; }
   .form-row-inline { grid-template-columns: 1fr 80px 80px 40px; }
   .duration-table-head,
-  .duration-row { grid-template-columns: 1fr 72px 72px 36px; gap: 8px; }
+  .duration-row { grid-template-columns: 1fr 56px 56px 80px; gap: 8px; }
 }
 
 /* Scrollbars dezent */

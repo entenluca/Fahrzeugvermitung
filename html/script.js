@@ -1195,7 +1195,7 @@
             <span>Anzeige</span>
             <span>Minuten</span>
             <span>Faktor</span>
-            <span></span>
+            <span>Aktion</span>
           </div>
           <div class="duration-list" id="duration-rows">${rows || '<div class="duration-empty">Noch keine Mietdauern konfiguriert.</div>'}</div>
         </div>
@@ -1231,9 +1231,9 @@
         <span class="duration-label" data-du-preview>${esc(formatDurationLabel(minutes))}</span>
         <input class="input input-compact" data-du-minutes type="number" min="1" step="1" value="${esc(minutes)}" aria-label="Minuten" />
         <input class="input input-compact" data-du-mult type="number" min="0.1" step="0.1" value="${esc(mult)}" aria-label="Faktor" />
-        <button class="btn btn-icon btn-sm btn-ghost duration-remove" data-du-remove aria-label="Entfernen">
-          <svg viewBox="0 0 16 16" class="ico"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.2a1 1 0 0 0 1 .8h3.8a1 1 0 0 0 1-.8l.6-8.2"/></svg>
-        </button>
+        <div class="duration-actions">
+          <button class="btn btn-danger btn-sm" data-du-remove>Löschen</button>
+        </div>
       </div>
     `;
   }
