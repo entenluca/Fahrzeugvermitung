@@ -382,9 +382,22 @@ local function FindDuration(idx)
 end
 
 local function FindPayment(id)
-    for _, p in ipairs(Config.PaymentMethods) do
+    id = Trim(id)
+    if id == '' then return nil end
+
+    for _, p in ipairs(Config.PaymentMethods or {}) do
         if p.id == id then return p end
     end
+
+    -- Kompatibilität: bank/card und Konto-Namen
+    if id == 'bank' or id == 'card' then
+        for _, p in ipairs(Config.PaymentMethods or {}) do
+            if p.id == 'bank' or p.id == 'card' or p.account == 'bank' then
+                return p
+            end
+        end
+    end
+
     return nil
 end
 
@@ -1858,13 +1871,17 @@ local function MB_SAFE_GetDurations()
 end
 
 local function MB_SAFE_GetPayments()
+    if type(Config.PaymentMethods) == 'table' and #Config.PaymentMethods > 0 then
+        return Config.PaymentMethods
+    end
+
     if Config.Payments and #Config.Payments > 0 then
         return Config.Payments
     end
 
     return {
-        { id = 'cash', label = 'Bar' },
-        { id = 'bank', label = 'Bank' }
+        { id = 'cash', label = 'Bargeld', account = 'money' },
+        { id = 'bank', label = 'Bank', account = 'bank' },
     }
 end
 
@@ -1940,23 +1957,13 @@ end, false)
 
 RegisterNetEvent('MB_Fahrzeugvermitung:server:openRentalAtLocation', function(locationKey)
     local src = source
-    local label = 'Mietstation'
-
-    for _, loc in ipairs(MB_SAFE_GetLocations()) do
-        if loc.key == locationKey then
-            label = loc.label or loc.name or label
-            break
-        end
+    local payload = BuildLocationPayload(locationKey, src)
+    if not payload then
+        TriggerClientEvent('MB_Fahrzeugvermitung:denied', src, 'Ungültiger Vermietungsstandort.')
+        return
     end
 
-    TriggerClientEvent('MB_Fahrzeugvermitung:client:openRental', src, {
-        location = locationKey,
-        locationLabel = label,
-        playerName = GetCharacterName(src),
-        vehicles = MB_SAFE_GetVehicles(),
-        durations = MB_SAFE_GetDurations(),
-        payments = MB_SAFE_GetPayments()
-    })
+    TriggerClientEvent('MB_Fahrzeugvermitung:client:openRental', src, payload)
 end)
 -- === /MB_SAFE_UI_OPEN ===
 

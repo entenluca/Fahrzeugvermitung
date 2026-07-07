@@ -131,8 +131,8 @@ Config.MaxActiveRentalsPerPlayer = 1  -- gleichzeitig aktive Mietfahrzeuge pro S
 ### Zahlungsmethoden
 ```lua
 Config.PaymentMethods = {
-    { id = 'cash', label = 'Bar',   account = 'money' },
-    { id = 'card', label = 'Karte', account = 'bank'  },
+    { id = 'cash', label = 'Bargeld', account = 'money' },
+    { id = 'bank', label = 'Bank',    account = 'bank'  },
 }
 ```
 `account` entspricht dem Framework-internen Konto-Namen (`money` = Bargeld,

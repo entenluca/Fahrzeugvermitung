@@ -91,8 +91,8 @@ Config.ContractItem = {
 -- ZAHLUNGSMETHODEN (fest in Config — nicht im Admin-Panel)
 -- ============================================================
 Config.PaymentMethods = {
-    { id = 'cash', label = 'Bar',   account = 'money' },
-    { id = 'card', label = 'Karte', account = 'bank'  },
+    { id = 'cash', label = 'Bargeld', account = 'money' },
+    { id = 'bank', label = 'Bank',    account = 'bank'  },
 }
 
 -- ============================================================
