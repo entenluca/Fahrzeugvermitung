@@ -76,10 +76,10 @@ Config.PaymentMethods = {
 -- MIETDAUER (Preis-Multiplikator wird auf den Fahrzeug-Grundpreis angewendet)
 -- ============================================================
 Config.RentalDurations = {
-    { label = '15 Minuten', minutes = 15,  multiplier = 1.0 },
-    { label = '30 Minuten', minutes = 30,  multiplier = 1.8 },
-    { label = '1 Stunde',   minutes = 60,  multiplier = 3.2 },
-    { label = '2 Stunden',  minutes = 120, multiplier = 6.0 },
+    { minutes = 15,  multiplier = 1.0 },
+    { minutes = 30,  multiplier = 1.8 },
+    { minutes = 60,  multiplier = 3.2 },
+    { minutes = 120, multiplier = 6.0 },
 }
 
 -- ============================================================

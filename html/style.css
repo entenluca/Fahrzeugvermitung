@@ -1044,6 +1044,10 @@ html, body {
   align-items: end;
 }
 
+.form-row-durations {
+  grid-template-columns: 1fr 110px 40px;
+}
+
 /* ════════════════════════════════════════════════════════════
    MODAL
    ════════════════════════════════════════════════════════════ */
@@ -1321,6 +1325,7 @@ html[data-theme="dark"] .theme-indicator-dot {
 @media (max-width: 560px) {
   .screen-header, .screen-body, .screen-footer { padding-left: 16px; padding-right: 16px; }
   .form-row-inline { grid-template-columns: 1fr 80px 80px 40px; }
+  .form-row-durations { grid-template-columns: 1fr 80px 40px; }
 }
 
 /* Scrollbars dezent */

@@ -271,6 +271,45 @@ local function FindLocation(name)
 end
 
 
+local function FormatDurationLabel(minutes)
+    minutes = math.floor(tonumber(minutes) or 0)
+    if minutes <= 0 then return '0 Minuten' end
+    if minutes == 1 then return '1 Minute' end
+    if minutes < 60 then return ('%d Minuten'):format(minutes) end
+    if minutes % 60 == 0 then
+        local hours = minutes / 60
+        if hours == 1 then return '1 Stunde' end
+        return ('%d Stunden'):format(hours)
+    end
+    return ('%d Minuten'):format(minutes)
+end
+
+local function NormalizeDurationEntry(du)
+    if type(du) ~= 'table' then return nil end
+    local minutes = math.max(1, math.floor(tonumber(du.minutes) or 0))
+    local multiplier = math.max(0.1, tonumber(du.multiplier) or 1.0)
+    if minutes <= 0 then return nil end
+    return {
+        minutes = minutes,
+        multiplier = multiplier,
+        label = FormatDurationLabel(minutes),
+    }
+end
+
+local function NormalizeDurations(list)
+    local clean = {}
+    for _, du in ipairs(list or {}) do
+        local entry = NormalizeDurationEntry(du)
+        if entry then clean[#clean + 1] = entry end
+    end
+    table.sort(clean, function(a, b) return a.minutes < b.minutes end)
+    return clean
+end
+
+local function GetRentalDurations()
+    return NormalizeDurations(Config.RentalDurations)
+end
+
 local function FindDuration(idx)
     return Config.RentalDurations[idx + 1] -- JS ist 0-indexiert
 end
@@ -638,7 +677,7 @@ local function BuildLocationPayload(locationName)
         locationLabel = loc.label,
         vehicles = vehicles,
         locations = BuildAdminLocations(),
-        durations = Config.RentalDurations,
+        durations = GetRentalDurations(),
         payments = Config.PaymentMethods,
     }
 end
@@ -688,7 +727,7 @@ local function BuildAdminPayload()
     return {
         vehicles = vehicles,
         locations = locations,
-        durations = Config.RentalDurations or {},
+        durations = GetRentalDurations(),
         payments = Config.PaymentMethods or {},
         rentals = rentals,
         settings = {
@@ -792,6 +831,8 @@ end
 
 LoadAdminStore()
 LoadContractStore()
+
+Config.RentalDurations = NormalizeDurations(Config.RentalDurations or {})
 
 CreateThread(function()
     RunAutoDatabaseSetup()
@@ -1277,20 +1318,11 @@ RegisterNetEvent('MB_Fahrzeugvermitung:adminAction', function(action, data)
 
     if action == 'saveDurations' then
         local list = type(data.list) == 'table' and data.list or {}
-        local clean = {}
-        for _, du in ipairs(list) do
-            local label = Trim(du.label)
-            local minutes = math.max(1, math.floor(tonumber(du.minutes) or 0))
-            local multiplier = math.max(0.1, tonumber(du.multiplier) or 0)
-            if label ~= '' and minutes > 0 and multiplier > 0 then
-                clean[#clean + 1] = { label = label, minutes = minutes, multiplier = multiplier }
-            end
-        end
+        local clean = NormalizeDurations(list)
         if #clean == 0 then
             NotifyAdmin(src, 'Mindestens eine gültige Mietdauer wird benötigt.', 'error')
             return
         end
-        table.sort(clean, function(a, b) return a.minutes < b.minutes end)
         Config.RentalDurations = clean
         NotifyAdmin(src, 'Mietdauern gespeichert.', 'success')
         BroadcastAdminPayload(src)
@@ -1590,18 +1622,18 @@ end
 
 local function MB_SAFE_GetDurations()
     if Config.Durations and #Config.Durations > 0 then
-        return Config.Durations
+        return NormalizeDurations(Config.Durations)
     end
 
     if Config.RentalDurations and #Config.RentalDurations > 0 then
-        return Config.RentalDurations
+        return GetRentalDurations()
     end
 
-    return {
-        { label = '15 Minuten', minutes = 15, multiplier = 1.0 },
-        { label = '30 Minuten', minutes = 30, multiplier = 1.8 },
-        { label = '60 Minuten', minutes = 60, multiplier = 3.2 }
-    }
+    return NormalizeDurations({
+        { minutes = 15, multiplier = 1.0 },
+        { minutes = 30, multiplier = 1.8 },
+        { minutes = 60, multiplier = 3.2 },
+    })
 end
 
 local function MB_SAFE_GetPayments()

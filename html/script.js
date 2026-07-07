@@ -117,6 +117,23 @@
     return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
   }
 
+  function formatDurationLabel(minutes) {
+    minutes = Math.max(0, Math.floor(Number(minutes) || 0));
+    if (minutes <= 0) return '0 Minuten';
+    if (minutes === 1) return '1 Minute';
+    if (minutes < 60) return `${minutes} Minuten`;
+    if (minutes % 60 === 0) {
+      const hours = minutes / 60;
+      return hours === 1 ? '1 Stunde' : `${hours} Stunden`;
+    }
+    return `${minutes} Minuten`;
+  }
+
+  function durationLabel(du) {
+    if (!du) return '—';
+    return du.label || formatDurationLabel(du.minutes);
+  }
+
   function post(endpoint, body) {
     if (!IN_GAME) {
       return Promise.resolve(Demo.handle(endpoint, body || {}));
@@ -326,7 +343,7 @@
       const tile = document.createElement('div');
       tile.className = 'option-tile';
       tile.innerHTML = `
-        <span class="option-tile-label">${esc(d.label)}</span>
+        <span class="option-tile-label">${esc(durationLabel(d))}</span>
         <span class="option-tile-sub">${money(Math.floor(v.price * d.multiplier))}</span>
       `;
       tile.addEventListener('click', () => {
@@ -457,7 +474,7 @@
     st.textContent = 'Unsigniert';
     st.className = 'contract-value status-pending';
     $('#contract-vehicle').textContent = v.label;
-    $('#contract-duration').textContent = d.label;
+    $('#contract-duration').textContent = durationLabel(d);
     $('#contract-payment').textContent = p.label;
     $('#contract-price').textContent = money(total);
     $('#signature-preview').innerHTML = '';
@@ -1158,7 +1175,7 @@
       <div class="tab-head">
         <div class="tab-head-text">
           <span class="tab-title">Mietdauern</span>
-          <span class="tab-sub">Preis = Grundpreis × Multiplikator (abgerundet)</span>
+          <span class="tab-sub">Bezeichnung wird automatisch aus den Minuten erzeugt (z. B. 15 → „15 Minuten“)</span>
         </div>
         <button class="btn btn-primary" id="btn-save-durations">Alle speichern</button>
       </div>
@@ -1175,16 +1192,15 @@
 
     $('#btn-add-duration').addEventListener('click', () => {
       const rowsWrap = $('#duration-rows');
-      rowsWrap.insertAdjacentHTML('beforeend', durationRowHTML({ label: '', minutes: 30, multiplier: 1.0 }));
+      rowsWrap.insertAdjacentHTML('beforeend', durationRowHTML({ minutes: 30, multiplier: 1.0 }));
       bindDurationRows(wrap);
     });
 
     $('#btn-save-durations').addEventListener('click', () => {
       const list = $$('.form-row-inline', wrap).map((row) => ({
-        label: $('[data-du-label]', row).value.trim(),
         minutes: Math.max(1, Math.floor(Number($('[data-du-minutes]', row).value))),
         multiplier: Math.max(0.1, Number($('[data-du-mult]', row).value)),
-      })).filter((x) => x.label && Number.isFinite(x.minutes) && Number.isFinite(x.multiplier));
+      })).filter((x) => Number.isFinite(x.minutes) && Number.isFinite(x.multiplier));
 
       if (!list.length) return toast('Mindestens eine gültige Mietdauer wird benötigt.', 'error');
       adminSend('saveDurations', { list });
@@ -1192,15 +1208,13 @@
   }
 
   function durationRowHTML(du) {
+    const minutes = Math.max(1, Math.floor(Number(du.minutes) || 15));
     return `
-      <div class="form-row-inline">
+      <div class="form-row-inline form-row-durations">
         <div class="field">
-          <label class="field-label">Bezeichnung</label>
-          <input class="input" data-du-label value="${esc(du.label)}" placeholder="z. B. 30 Minuten" />
-        </div>
-        <div class="field">
-          <label class="field-label">Minuten</label>
-          <input class="input" data-du-minutes type="number" min="1" step="1" value="${esc(du.minutes)}" />
+          <label class="field-label">Mietdauer (Minuten)</label>
+          <input class="input" data-du-minutes type="number" min="1" step="1" value="${esc(minutes)}" />
+          <span class="field-hint duration-preview">${esc(formatDurationLabel(minutes))}</span>
         </div>
         <div class="field">
           <label class="field-label">Faktor</label>
@@ -1218,6 +1232,16 @@
       if (b.dataset.bound) return;
       b.dataset.bound = '1';
       b.addEventListener('click', () => b.closest('.form-row-inline').remove());
+    });
+    $$('[data-du-minutes]', wrap).forEach((input) => {
+      if (input.dataset.boundPreview) return;
+      input.dataset.boundPreview = '1';
+      input.addEventListener('input', () => {
+        const preview = input.closest('.field')?.querySelector('.duration-preview');
+        if (preview) {
+          preview.textContent = formatDurationLabel(Math.max(1, Math.floor(Number(input.value) || 0)));
+        }
+      });
     });
   }
 
@@ -1433,10 +1457,10 @@
           { name: 'strand',    label: 'Strand Vermietung',    vehicles: ['faggio2', 'faggio'] },
         ],
         durations: [
-          { label: '15 Minuten', minutes: 15,  multiplier: 1.0 },
-          { label: '30 Minuten', minutes: 30,  multiplier: 1.8 },
-          { label: '1 Stunde',   minutes: 60,  multiplier: 3.2 },
-          { label: '2 Stunden',  minutes: 120, multiplier: 6.0 },
+          { minutes: 15,  multiplier: 1.0 },
+          { minutes: 30,  multiplier: 1.8 },
+          { minutes: 60,  multiplier: 3.2 },
+          { minutes: 120, multiplier: 6.0 },
         ],
         payments: [
           { id: 'cash', label: 'Bar' },
@@ -1517,7 +1541,11 @@
         toast('Standort gespeichert.', 'success');
       }
       if (action === 'saveDurations') {
-        d.durations = data.list.sort((a, b) => a.minutes - b.minutes);
+        d.durations = data.list.map((entry) => ({
+          minutes: entry.minutes,
+          multiplier: entry.multiplier,
+          label: formatDurationLabel(entry.minutes),
+        })).sort((a, b) => a.minutes - b.minutes);
         toast('Mietdauern gespeichert.', 'success');
       }
       if (action === 'saveSettings') {

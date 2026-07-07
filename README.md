@@ -141,12 +141,14 @@ Config.PaymentMethods = {
 ### Mietdauer
 ```lua
 Config.RentalDurations = {
-    { label = '15 Minuten', minutes = 15,  multiplier = 1.0 },
-    { label = '30 Minuten', minutes = 30,  multiplier = 1.8 },
-    { label = '1 Stunde',   minutes = 60,  multiplier = 3.2 },
-    { label = '2 Stunden',  minutes = 120, multiplier = 6.0 },
+    { minutes = 15,  multiplier = 1.0 },
+    { minutes = 30,  multiplier = 1.8 },
+    { minutes = 60,  multiplier = 3.2 },
+    { minutes = 120, multiplier = 6.0 },
 }
 ```
+Die Anzeige in der UI (z. B. „15 Minuten“, „1 Stunde“) wird automatisch aus den
+`minutes`-Werten erzeugt — ein separates `label` ist nicht mehr nötig.
 Der `multiplier` wird mit dem Grundpreis des Fahrzeugs multipliziert, um den
 Gesamtpreis zu berechnen (`price * multiplier`, abgerundet).
 
