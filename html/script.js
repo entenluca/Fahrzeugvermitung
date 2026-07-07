@@ -1197,29 +1197,45 @@
     const wrap = $('#tab-locations');
     const locations = d.locations || [];
 
-    const rows = locations.map((loc) => {
+    const cards = locations.map((loc) => {
       const coords = loc.coords || {};
       const spawn = loc.spawnPoint || {};
       const spawnLabel = (spawn.x != null && spawn.y != null && spawn.z != null)
-        ? `${Number(spawn.x).toFixed(1)}, ${Number(spawn.y).toFixed(1)}, ${Number(spawn.z).toFixed(1)}`
-        : 'Automatisch';
+        ? `${Number(spawn.x).toFixed(2)}, ${Number(spawn.y).toFixed(2)}, ${Number(spawn.z).toFixed(2)}`
+        : 'Automatisch (3 m neben NPC)';
       const source = loc.source || 'admin';
       const canDelete = source !== 'config';
       return `
-        <tr>
-          <td class="td-strong">${esc(loc.label || loc.name || 'Mietstation')}</td>
-          <td><span class="code">${Number(coords.x || 0).toFixed(2)}, ${Number(coords.y || 0).toFixed(2)}, ${Number(coords.z || 0).toFixed(2)}</span></td>
-          <td><span class="code">${Number(loc.heading || 0).toFixed(1)}</span></td>
-          <td><span class="code">${spawnLabel}</span></td>
-          <td><span class="code">${esc(loc.pedModel || 's_m_m_autoshop_01')}</span></td>
-          <td><span class="badge badge-neutral">${source === 'config' ? 'Config' : 'Ingame'}</span></td>
-          <td>
-            <div class="td-actions">
+        <article class="location-card">
+          <div class="location-card-head">
+            <div class="location-card-title-wrap">
+              <h3 class="location-card-title">${esc(loc.label || loc.name || 'Mietstation')}</h3>
+              <span class="badge badge-neutral">${source === 'config' ? 'Config' : 'Ingame'}</span>
+            </div>
+            <div class="location-card-actions">
               <button class="btn btn-secondary btn-sm" data-edit-location="${esc(loc.key)}">Bearbeiten</button>
               ${canDelete ? `<button class="btn btn-danger btn-sm" data-delete-location="${esc(loc.key)}">Löschen</button>` : ''}
             </div>
-          </td>
-        </tr>
+          </div>
+          <div class="location-card-grid">
+            <div class="location-card-field">
+              <span class="location-card-label">NPC-Koordinaten</span>
+              <span class="code code-coords">${Number(coords.x || 0).toFixed(2)}, ${Number(coords.y || 0).toFixed(2)}, ${Number(coords.z || 0).toFixed(2)}</span>
+            </div>
+            <div class="location-card-field">
+              <span class="location-card-label">Heading</span>
+              <span class="code code-coords">${Number(loc.heading || 0).toFixed(1)}</span>
+            </div>
+            <div class="location-card-field location-card-field-wide">
+              <span class="location-card-label">Spawnpunkt</span>
+              <span class="code code-coords">${esc(spawnLabel)}</span>
+            </div>
+            <div class="location-card-field location-card-field-wide">
+              <span class="location-card-label">NPC-Modell</span>
+              <span class="code code-coords">${esc(loc.pedModel || 's_m_m_autoshop_01')}</span>
+            </div>
+          </div>
+        </article>
       `;
     }).join('');
 
@@ -1232,15 +1248,8 @@
         <button class="btn btn-primary" id="btn-add-location">Ort hinzufügen</button>
       </div>
 
-      <div class="panel">
-        ${rows ? `
-          <table class="table">
-            <thead>
-              <tr><th>Name</th><th>NPC-Koordinaten</th><th>Heading</th><th>Spawnpunkt</th><th>NPC</th><th>Quelle</th><th></th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        ` : '<div class="table-empty">Keine Miet-Orte vorhanden.</div>'}
+      <div class="location-cards">
+        ${cards || '<div class="table-empty">Keine Miet-Orte vorhanden.</div>'}
       </div>
     `;
 
