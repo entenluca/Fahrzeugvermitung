@@ -251,6 +251,28 @@ html[data-theme="dark"] .contract-viewer-overlay {
 .statusbar-trailing {
   gap: 6px;
   margin-left: auto;
+  overflow: visible;
+}
+
+.statusbar-trailing svg {
+  display: block;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.statusbar-cellular {
+  width: 17px;
+  height: 11px;
+}
+
+.statusbar-wifi {
+  width: 16px;
+  height: 12px;
+}
+
+.statusbar-battery {
+  width: 27px;
+  height: 13px;
 }
 
 .statusbar-clock {
@@ -259,24 +281,6 @@ html[data-theme="dark"] .contract-viewer-overlay {
   letter-spacing: -0.02em;
   line-height: 1;
   color: var(--ink);
-}
-
-.statusbar-cellular {
-  width: 17px;
-  height: 11px;
-  flex-shrink: 0;
-}
-
-.statusbar-wifi {
-  width: 16px;
-  height: 12px;
-  flex-shrink: 0;
-}
-
-.statusbar-battery {
-  width: 27px;
-  height: 13px;
-  flex-shrink: 0;
 }
 
 html[data-theme="dark"] .statusbar-clock,
