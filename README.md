@@ -352,8 +352,9 @@ Beim Benutzen des Items `mietvertrag` wird jetzt nur noch das Vertragsblatt ange
 Das große Miet-Tablet wird dabei nicht geöffnet. Der Viewer enthält nur:
 
 - Vertragsblatt
-- Schließen
-- Spieler zeigen
+- Spieler zeigen (falls berechtigt)
+
+Schließen per ESC oder Klick außerhalb des Vertragsblatts.
 
 Die normale Mietstation nutzt weiterhin das Tablet.
 

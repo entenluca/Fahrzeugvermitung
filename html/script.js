@@ -539,10 +539,10 @@
             <div class="signature-preview">${sigHtml}</div>
           </div>
         </div>
+        ${allowShow ? `
         <div class="contract-viewer-actions">
-          <button class="btn btn-secondary" data-viewer-close>Schließen</button>
-          ${allowShow ? '<button class="btn btn-primary" data-viewer-show>Spieler zeigen</button>' : ''}
-        </div>
+          <button class="btn btn-primary" data-viewer-show>Spieler zeigen</button>
+        </div>` : ''}
       </div>
     `;
 
@@ -1704,7 +1704,7 @@
     app.dataset.bound = '1';
 
     app.addEventListener('click', (e) => {
-      if (e.target === app || e.target.closest('[data-viewer-close]')) {
+      if (e.target === app) {
         return requestCloseUI();
       }
 
